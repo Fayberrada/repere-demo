@@ -1222,6 +1222,31 @@ a.chantier.lien-l:hover b { color: var(--bleu); text-decoration: underline; }
 .devenir .t { flex: 1; min-width: 260px; }
 .devenir h2 { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
 
+/* v12.1 : identifiant des agents, conversations récentes, modèle et fiche dans Sécur'IA */
+.id-agent { display: inline-flex; align-items: center; gap: 4px; font: 500 12px/1 ui-monospace, "SF Mono", Menlo, monospace; color: var(--gris); padding: 2px 0; margin-top: 2px; background: none; cursor: copy; }
+.id-agent:hover { color: var(--bleu); }
+.id-agent.etiq { padding: 0 10px; background: var(--pale); color: var(--bleu); margin: 0; }
+.sia-col { overflow-y: auto; }
+.sia-col > a.sia-recent { display: block; padding: 6px 10px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sia-id { font: 500 11.5px/1 ui-monospace, "SF Mono", Menlo, monospace; color: #77807c; }
+.sia-carte .sia-id { margin-top: 3px; }
+.sia-barre .sia-id { margin-left: -2px; }
+button.sia-modele { background: #fff; border: 1px solid #dfe3e1; border-radius: 8px; padding: 5px 8px 5px 10px; cursor: pointer; }
+button.sia-modele:hover { border-color: var(--sia); }
+.sia-barre .sia-nouveau + .sia-nouveau { margin-left: 0; }
+.menu.sia-fiche { width: 380px; max-height: 70vh; overflow-y: auto; }
+.sia-fiche-c { padding: 4px 12px 12px; font-size: 13.5px; }
+.sia-fiche-t { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+.sia-fiche-t b { display: block; font-size: 15px; font-weight: 600; }
+.sia-fiche-t span:not(.sia-ic) { color: var(--gris); font-size: 13px; }
+.sia-fiche-c dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0 0 12px; }
+.sia-fiche-c dt { color: var(--gris); }
+.sia-fiche-c dd { margin: 0; }
+.sia-fiche-c .id-agent { margin: 0; padding: 0; }
+.sia-fiche-c .st { display: block; font-weight: 600; margin: 10px 0 4px; }
+.sia-fiche-c ul { margin: 0; padding-left: 18px; color: #3c4541; }
+.sia-fiche-c .lien-mini { display: inline-flex; gap: 6px; align-items: center; margin-top: 12px; }
+
 </style>
 <script>
   // Le thème choisi : Sécur'IA (vert clair, par défaut), LCL (bleu et jaune) ou sombre (vert) ; posé avant l'affichage pour éviter un éclair.
@@ -2408,6 +2433,11 @@ window.REPERE12.cadre.monChampion = { claire: "julien-roux", thomas: "sarah-cohe
   const ic = (n, c = "") => `<span class="ic ${c}" aria-hidden="true">${n}</span>`;
   const par = (liste, id) => liste.find(x => x.id === id);
   const agent = id => par(D.agents, id);
+  // Chaque agent a un identifiant de registre : AGT-GRP-… pour les agents du Groupe, AGT-LCL-… pour ceux de LCL.
+  { let g = 0, l = 100; D.agents.filter(a => !a.raccourci).forEach((a, i) => {
+    a.code = a.code || (a.groupe ? `AGT-GRP-${String(++g).padStart(4, "0")}` : `AGT-LCL-${String(++l).padStart(4, "0")}`);
+    a.version = a.version || `${1 + i % 3}.${(i * 7) % 10}`; }); }
+  const idAgent = (a, cls) => a.code ? `<button class="id-agent ${cls || ""}" data-act="copier-id" data-val="${a.code}" title="Copier l'identifiant">${a.code}</button>` : "";
   const outil = id => par(D.outils, id || "securia");
   const prompt = id => par(D.prompts, id), article = id => par(D.articles, id), evenement = id => par(D.evenements, id);
   const theme = k => D.themes.find(x => x[0] === k);
@@ -2485,7 +2515,7 @@ window.REPERE12.cadre.monChampion = { claire: "julien-roux", thomas: "sarah-cohe
   const etiqPour = a => a.pour.includes("tous") ? `<span class="etiq neutre">Pour tous</span>` : `<span class="etiq">${a.pour.map(m => par(D.metiers, m).court).join(" · ")}</span>`;
   const carteAgent = a => `<article class="carte agent-c">
       <div class="haut-c"><span class="pastille">${ic(a.icone)}</span><span class="etiqs">${a.outil ? `<span class="etiq neutre">${esc(outil(a.outil).nom)}</span>` : ""}${a.statut ? `<span class="etiq ${a.statut[0]}">${a.statut[1]}</span>` : etiqPour(a)}${etoile(a.id)}</span></div>
-      <h3><a href="#agent/${a.id}">${esc(a.nom)}</a></h3><p class="desc">${esc(a.fait)}</p>
+      <h3><a href="#agent/${a.id}">${esc(a.nom)}</a></h3>${idAgent(a)}<p class="desc">${esc(a.fait)}</p>
       <div class="essai">${ic("chat_bubble", "s18")}<span>« ${esc(a.exemple)} »</span></div>
       <div class="actions">${ouvrir(a.id, a.exemple, "btn", "Essayer")}<a class="btn contour" href="#agent/${a.id}">La fiche</a></div></article>`;
   const accesOutil = o => o.pour.includes("tous") || (moi().acces || []).includes(o.id);
@@ -2682,13 +2712,13 @@ window.REPERE12.cadre.monChampion = { claire: "julien-roux", thomas: "sarah-cohe
     const o = outil(a.outil);
     return `<a class="retour-l" href="#agents">${ic("arrow_back", "s18")}Les agents</a>
       <header class="fiche-t">${constellation(1200, 180, "fiche-" + a.id, 10, .5)}<span class="pastille grande">${ic(a.icone)}</span><div><h1>${esc(a.nom)}</h1><p>${esc(a.fait)}</p>
-        <div class="etiqs">${etiqPour(a)}<span class="etiq neutre">${ic(o.icone, "s18")}${esc(o.nom)}</span></div></div>${etoile(a.id)}</header>
+        <div class="etiqs">${etiqPour(a)}<span class="etiq neutre">${ic(o.icone, "s18")}${esc(o.nom)}</span>${idAgent(a, "etiq")}</div></div>${etoile(a.id)}</header>
       <div class="grille g3">
         <div class="carte fiche-b"><h3>${ic("lightbulb")}Ce qu'il sait</h3><ul>${a.sait.map(s => `<li>${esc(s)}</li>`).join("")}</ul></div>
         <div class="carte fiche-b"><h3>${ic("block")}Ce qu'il ne fait pas</h3><ul>${a.limites.map(s => `<li>${esc(s)}</li>`).join("")}</ul></div>
         <div class="carte fiche-b"><h3>${ic("info")}Bon à savoir</h3><dl>
           <dt>Pour qui</dt><dd>${a.pour.includes("tous") ? "Tous les collaborateurs" : capitale(a.pour.map(m => par(D.metiers, m).court.toLowerCase().replace(/^it$/, "IT")).join(", "))}</dd>
-          <dt>Où</dt><dd>${esc(o.nom)}</dd><dt>Tenu à jour par</dt><dd>${esc(a.porteur)}</dd><dt>Mis à jour</dt><dd>${esc(a.maj)}</dd></dl></div>
+          <dt>Où</dt><dd>${esc(o.nom)}</dd><dt>Tenu à jour par</dt><dd>${esc(a.porteur)}</dd><dt>Mis à jour</dt><dd>${esc(a.maj)} · version ${a.version}</dd></dl></div>
       </div>
       ${moi().role === "officer" && statsAgent(a.id) ? `<a class="bande-ev role tb" href="#tableau/${a.id}"><span class="pastille">${ic("monitoring")}</span><span class="t"><b>Son tableau de bord</b><span>${nombre(statsAgent(a.id).semaines[11])} conversations cette semaine · ${statsAgent(a.id).utiles} % de réponses utiles</span></span>${ic("arrow_forward")}</a>` : ""}
       <div class="carte essai-f">${ic("chat_bubble")}<div><b>Essayez</b><span>« ${esc(a.exemple)} »</span></div>${ouvrir(a.id, a.exemple)}</div>`;
@@ -3054,13 +3084,15 @@ window.REPERE12.cadre.monChampion = { claire: "julien-roux", thomas: "sarah-cohe
       <a data-act="toast" data-msg="Vos conversations archivées (démonstration)." href="#sia">${ic("inventory_2")}Archives conversations</a>
       <div class="sia-g">Épinglés</div>
       ${epingles.map(x => `<a href="#sia/${x.id}" class="${id === x.id ? "on" : ""}">${ic(x.icone)}${esc(x.nom)}</a>`).join("")}
+      ${RECENTES.map(([quand, l]) => [quand, l.filter(([, ag]) => agent(ag) && pourMoi(agent(ag)))]).filter(([, l]) => l.length).map(([quand, l]) => `<div class="sia-g">${quand}</div>
+        ${l.map(([t, ag]) => `<a href="#sia/${ag}" class="sia-recent" data-act="sia" data-id="${ag}" data-q="${esc(agent(ag).exemple)}" title="${esc(agent(ag).nom)}">${esc(t)}</a>`).join("")}`).join("")}
       <div class="sia-moi">${avatar(c.nom, c.teinte)}${esc(c.prenom)}</div></aside>`;
     if (!a) return `${col}<main class="sia-main"><div class="sia-accueil">
       <h1>Bienvenue, ${esc(c.prenom)}</h1>
       <form class="sia-saisie" data-form="sia"><input name="q" placeholder="Comment puis-je vous aider aujourd'hui ?" aria-label="Votre demande" autocomplete="off"><span class="outils">${ic("attach_file", "s20")}${ic("tune", "s20")}</span><span class="outils droite">${ic("mic", "s20")}<button class="envoyer" aria-label="Envoyer">${ic("arrow_outward", "s20")}</button></span></form>
       <div class="sia-chips">${[["edit", "Rédiger"], ["auto_awesome", "Analyser"], ["menu_book", "Apprendre"], ["auto_awesome", "Créer"], ["auto_awesome", "Expertise"]].map(([i, t]) => `<span>${ic(i, "s18")}${t}</span>`).join("")}</div>
       <div class="sia-onglets"><b>Agents disponibles</b><span>Canvas récents</span></div>
-      <div class="sia-agents">${D.agents.filter(x => x.id !== "securi-chat" && !x.raccourci && !x.outil && pourMoi(x)).slice(0, 8).map(x => `<a class="sia-carte" href="#sia/${x.id}"><span class="sia-ic">${ic(x.icone)}</span><span><b>${esc(x.nom)}</b><span>${esc(x.fait)}</span></span></a>`).join("")}</div>
+      <div class="sia-agents">${D.agents.filter(x => x.id !== "securi-chat" && !x.raccourci && !x.outil && pourMoi(x)).slice(0, 8).map(x => `<a class="sia-carte" href="#sia/${x.id}"><span class="sia-ic">${ic(x.icone)}</span><span><b>${esc(x.nom)}</b><span>${esc(x.fait)}</span><small class="sia-id">${x.code}</small></span></a>`).join("")}</div>
     </div></main>`;
     // La conversation : le fil de l'agent garde les échanges de la visite ; le message qui arrive est traité ici.
     const f = etat.fils[id] = etat.fils[id] || [], pjA = D.pj && D.pj[id];
@@ -3074,7 +3106,7 @@ window.REPERE12.cadre.monChampion = { claire: "julien-roux", thomas: "sarah-cohe
           <div class="sia-alerte-a"><button data-act="sia-anonymiser" data-q="${esc(m.q)}">${ic("visibility_off", "s18")}Anonymiser mon message</button><a href="#regles">${ic("explore", "s18")}Ce qu'on met, ce qu'on ne met pas · dans Repère</a></div></div></div>`
       : bulleIA(a, m, k === f.length - 1)).join("");
     f.forEach(m => { if (m.neuf) setTimeout(() => { m.neuf = false; }); });
-    return `${col}<main class="sia-main"><div class="sia-barre"><span class="sia-ic petit">${ic(a.icone, "s18")}</span><b>${esc(a.nom)}</b><span class="sia-modele">Claude 4.5 Haiku${ic("expand_more", "s18")}</span><span style="flex:1"></span><button class="sia-nouveau" data-act="sia-nouveau" data-id="${a.id}">${ic("edit_square", "s18")}Nouveau chat</button></div>
+    return `${col}<main class="sia-main"><div class="sia-barre"><span class="sia-ic petit">${ic(a.icone, "s18")}</span><b>${esc(a.nom)}</b><small class="sia-id">${a.code || ""}</small><button class="sia-modele" data-act="sia-modele">${esc(modele())}${ic("expand_more", "s18")}</button><span style="flex:1"></span><button class="sia-nouveau" data-act="sia-fiche" data-id="${a.id}">${ic("info", "s18")}Fiche de l'agent</button><button class="sia-nouveau" data-act="sia-nouveau" data-id="${a.id}">${ic("edit_square", "s18")}Nouveau chat</button></div>
       <div class="sia-fil">${!f.length ? `<div class="sia-bienvenue"><span class="sia-ic grand">${ic(a.icone)}</span><h2>${esc(a.nom)}</h2><p>${esc(a.fait)}</p>
           <div class="sia-chips">${(((D.dialogues || {})[a.id] || []).filter(x => !x.pj || pjA).slice(0, 1).map(x => x.q).concat(((D.dialogues || {})[a.id] || []).length ? [] : [a.exemple]))
             .map(q => `<button data-act="sia" data-id="${a.id}" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>
@@ -3083,6 +3115,32 @@ window.REPERE12.cadre.monChampion = { claire: "julien-roux", thomas: "sarah-cohe
         ${pjA ? `<button type="button" class="sia-joindre${etat.pj[id] ? " on" : ""}" data-act="sia-pj" data-id="${a.id}" title="Joindre un document" aria-label="Joindre un document">${ic("attach_file", "s20")}</button>` : ""}
         <input name="q" placeholder="${f.length ? "Répondre…" : "Message…"}" aria-label="Votre message" autocomplete="off"><span class="sia-garde">${ic("lock", "s18")}Aucune donnée client nominative</span><button class="envoyer" aria-label="Envoyer">${ic("arrow_upward", "s20")}</button></form></main>`;
   }
+
+  const ACTIONS = {};
+  // Les conversations récentes de la colonne, et les modèles proposés par la plateforme (démonstration).
+  const RECENTES = [["Aujourd'hui", [["Compte rendu du comité d'agence", "secur-cr"], ["Réponse à un client mécontent", "securi-chat"]]],
+    ["Hier", [["Justificatifs pour un prêt immobilier", "procedures-credit-immobilier"], ["Tests de la fonction de calcul", "securi-dev"]]],
+    ["7 derniers jours", [["Plan de la présentation du trimestre", "securi-page"], ["Cadrage du nouvel accueil", "secur-cadrage"], ["Annonce conseiller clientèle", "job-ia"]]]];
+  const MODELES = [["Claude 4.5 Haiku", "Rapide, pour le quotidien"], ["Claude 4.5 Sonnet", "Pour les documents longs et l'analyse"], ["Claude Opus", "Réservé aux développeurs"]];
+  const modele = () => etat.modele || MODELES[0][0];
+  const popover = (ancre, html, large) => {
+    document.querySelectorAll(".menu").forEach(x => x.remove());
+    const r = ancre.getBoundingClientRect(), m = document.createElement("div");
+    m.className = "menu" + (large ? " sia-fiche" : ""); m.style.top = (r.bottom + 8) + "px";
+    if (large) m.style.right = (window.innerWidth - r.right) + "px"; else m.style.left = r.left + "px";
+    m.innerHTML = html; document.body.appendChild(m);
+    setTimeout(() => document.addEventListener("click", function f(e) { if (!m.contains(e.target) || e.target.closest("[data-act]")) { m.remove(); document.removeEventListener("click", f); } }), 0);
+  };
+  ACTIONS["sia-modele"] = (b, e) => { e.stopPropagation(); popover(b, `<div class="titre">Modèle</div>` + MODELES.map(([n, d]) => `<button class="item ${n === modele() ? "actif" : ""}" data-act="sia-choix-modele" data-val="${n}"><div><b>${n}</b><span>${d}</span></div></button>`).join("")); };
+  ACTIONS["sia-choix-modele"] = b => { etat.modele = b.dataset.val; rendre(); toast(`La conversation continue avec ${b.dataset.val}.`); };
+  ACTIONS["sia-fiche"] = (b, e) => { e.stopPropagation(); const a = agent(b.dataset.id);
+    popover(b, `<div class="titre">Fiche de l'agent</div><div class="sia-fiche-c">
+      <div class="sia-fiche-t"><span class="sia-ic">${ic(a.icone)}</span><div><b>${esc(a.nom)}</b><span>${esc(a.fait)}</span></div></div>
+      <dl><dt>Identifiant</dt><dd>${idAgent(a)}</dd><dt>Version</dt><dd>${a.version} · mise à jour ${esc(a.maj || "")}</dd><dt>Tenu à jour par</dt><dd>${esc(a.porteur || "")}</dd><dt>Modèle</dt><dd>${esc(modele())}</dd></dl>
+      <b class="st">Ce qu'il sait</b><ul>${(a.sait || []).map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+      <b class="st">Ce qu'il ne fait pas</b><ul>${(a.limites || []).map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+      <a class="lien-mini" href="#agent/${a.id}">${ic("explore", "s18")}La fiche complète · dans Repère</a></div>`, true); };
+  ACTIONS["copier-id"] = (b, e) => { e.preventDefault(); e.stopPropagation(); try { navigator.clipboard.writeText(b.dataset.val); } catch (x) { } toast(`Identifiant ${b.dataset.val} copié.`, "content_copy"); };
 
   // ---------- La conversation simulée ----------
   // Le garde-fou : un IBAN, un numéro de compte ou « Madame Untel » arrêtent le message avant qu'il parte.
@@ -3160,7 +3218,6 @@ window.REPERE12.cadre.monChampion = { claire: "julien-roux", thomas: "sarah-cohe
   const V = D.cadre;
   const CONSTRUIT = ["thomas", "samir", "julien", "helene"], ACTEURS = ["samir", "julien", "helene"];
   const pourQui = l => l.includes(etat.compte);
-  const ACTIONS = {};
   const onglets = (items, actif) => { const v = items.filter(x => !x[4] || pourQui(x[4])); return v.length < 2 ? "" :
     `<div class="onglets"><div class="groupe-o">${v.map(([cle, href, icone, nom]) => `<a href="${href}" class="${cle === actif ? "actif" : ""}">${ic(icone)}${nom}</a>`).join("")}</div></div>`; };
   const section = (titre, contenu, lien, sous) => `<section class="section"><div class="section-t"><div><h2>${titre}</h2>${sous ? `<p class="desc">${sous}</p>` : ""}</div>${lien ? `<a class="lien" href="${lien[1]}">${lien[0]}${ic("arrow_forward", "s18")}</a>` : ""}</div>${contenu}</section>`;
