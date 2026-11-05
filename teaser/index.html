@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Repère · le teaser</title>
+<style>
+  :root { --nuit: #0b143b; --texte: #f0f4f9; --doux: #aab4d4; --jaune: #ffd204; }
+  * { box-sizing: border-box; margin: 0; }
+  body { min-height: 100vh; background: var(--nuit); color: var(--texte); font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 28px 16px; }
+  header { text-align: center; }
+  h1 { font-size: clamp(28px, 4vw, 44px); font-weight: 600; letter-spacing: -.01em; }
+  p { color: var(--doux); margin-top: 8px; font-size: 16px; }
+  video { width: min(1100px, 100%, calc((100vh - 230px) * 16 / 9)); aspect-ratio: 16 / 9; border-radius: 16px; background: #000; box-shadow: 0 24px 60px rgba(0, 0, 0, .45); }
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  a { display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 999px; font-weight: 600; font-size: 15px; text-decoration: none; }
+  a.principal { background: var(--jaune); color: var(--nuit); }
+  a.secondaire { color: var(--texte); border: 1px solid rgba(240, 244, 249, .35); }
+  a:hover { filter: brightness(1.08); }
+  small { color: var(--doux); font-size: 12px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Repère, le Hub IA de LCL</h1>
+    <p>Trouver tout ce qui se fait en IA chez LCL, en une minute trente.</p>
+  </header>
+  <video src="repere-teaser.mp4" poster="affiche.jpg" controls preload="metadata" playsinline></video>
+  <div class="actions">
+    <a class="principal" href="../">Explorer le prototype</a>
+  </div>
+  <small>Prototype de démonstration · contenu fictif</small>
+</body>
+</html>
