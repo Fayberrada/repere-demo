@@ -1248,6 +1248,33 @@ button.sia-modele:hover { border-color: var(--sia); }
 
 .sia-carte .sia-ic .ic{font-size:22px}
 
+/* ---------- L'assistant simulé (bas à droite) ---------- */
+.cp-bouton { position: fixed; right: 16px; bottom: 16px; z-index: 60; height: 52px; padding: 0 20px 0 16px; border: 0; border-radius: 999px; background: var(--vif); color: #fff;
+  font: inherit; font-size: 14.5px; font-weight: 500; display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 8px 24px rgba(47, 80, 208, .35); cursor: pointer; }
+.cp-bouton:hover { background: var(--vif-fonce); }
+.cp-bouton.on { background: var(--nuit); }
+.cp-bouton:focus-visible, .cp-panneau button:focus-visible, .cp-saisie input:focus-visible { outline: 3px solid var(--jaune); outline-offset: 2px; }
+.cp-panneau { position: fixed; right: 16px; bottom: 80px; z-index: 60; width: 360px; max-width: calc(100vw - 32px); max-height: min(560px, calc(100vh - 110px));
+  display: flex; flex-direction: column; background: var(--carte); border-radius: 24px; box-shadow: 0 16px 48px rgba(15, 27, 77, .28); overflow: hidden; animation: monte .18s ease both; }
+.cp-panneau[hidden] { display: none; }
+.cp-tete { display: flex; align-items: center; gap: 8px; padding: 14px 10px 12px 18px; border-bottom: 1px solid var(--filet); }
+.cp-nom { font-weight: 500; color: var(--titre); }
+.cp-tag { font-size: 11.5px; color: var(--att); background: var(--att-pale); border-radius: 999px; padding: 2px 8px; }
+.cp-fermer { margin-left: auto; width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: var(--gris); display: grid; place-items: center; cursor: pointer; }
+.cp-fermer:hover { background: var(--survol); }
+.cp-fil { flex: 1; min-height: 160px; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.cp-msg { max-width: 88%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.5; white-space: pre-line; }
+.cp-msg.ia { align-self: flex-start; background: var(--pale); color: var(--encre); border-bottom-left-radius: 6px; }
+.cp-msg.moi { align-self: flex-end; background: var(--vif); color: #fff; border-bottom-right-radius: 6px; }
+.cp-sugg { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; }
+.cp-sugg button { border: 1px solid var(--filet); background: var(--carte); color: var(--bleu); font: inherit; font-size: 13px; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.cp-sugg button:hover { background: var(--pale); }
+.cp-saisie { display: flex; align-items: center; gap: 8px; padding: 10px 10px 12px 16px; border-top: 1px solid var(--filet); }
+.cp-saisie input { flex: 1; min-width: 0; border: 0; outline: 0; font: inherit; font-size: 14px; color: var(--encre); background: transparent; }
+.cp-saisie button { width: 36px; height: 36px; flex: none; border: 0; border-radius: 50%; background: var(--vif); color: #fff; display: grid; place-items: center; cursor: pointer; }
+#cp[hidden] { display: none; }
+@media (max-width: 600px) { .cp-bouton { padding: 0; width: 52px; justify-content: center; } .cp-bouton .cp-lib { display: none; } }
+
 </style>
 <script>
   // Le thème choisi : Sécur'IA (vert clair, par défaut), LCL (bleu et jaune) ou sombre (vert) ; posé avant l'affichage pour éviter un éclair.
@@ -3512,7 +3539,85 @@ window.REPERE12.cadre.monChampion = { claire: "julien-roux", thomas: "sarah-cohe
     document.querySelectorAll("[data-act=theme]").forEach(b => { b.classList.toggle("on", b.dataset.val === th); b.setAttribute("aria-pressed", b.dataset.val === th); });
   }
 
-  document.addEventListener("DOMContentLoaded", () => { majTheme(); rendre(); });
+  // ---------- L'assistant simulé, en bas à droite ----------
+  // Une simulation pour la démonstration : il lit le titre et les sections de la page affichée et répond par des
+  // phrases préparées. Il n'appelle aucun modèle, n'envoie rien et ne garde rien au-delà de la page.
+  const compagnon = { ouvert: false, page: null, fil: [] };
+  const pageCourante = () => { const h = document.querySelector("#page h1"); return h ? h.textContent.trim() : "cette page"; };
+  const sectionsCourantes = () => [...document.querySelectorAll("#page h2")].map(h => h.textContent.trim()).filter(Boolean).slice(0, 6);
+  const rubriqueCourante = () => { const a = document.querySelector("#rail a.actif"), s = a && a.querySelector("span:not(.ic)"); return s ? s.textContent.trim() : ""; };
+  const SUGGESTIONS = {
+    resume: ["Résumer cette page", () => { const s = sectionsCourantes();
+      return `Cette page s'intitule « ${pageCourante()} ».` + (s.length ? ` Elle se découpe en : ${s.join(" ; ")}.` : " Elle ne contient pas de sections repérables."); }],
+    debut: ["Par où commencer ?", () => { const r = rubriqueCourante();
+      return (r ? `Vous êtes dans la rubrique « ${r} ». ` : "") + "La colonne de gauche range les rubriques par usage : c'est elle qui vous fait passer de l'une à l'autre."; }],
+    sia: ["Poser une question à Sécur'IA", null]
+  };
+  const cpEl = id => document.getElementById(id);
+  function cpRendre() {
+    const fil = cpEl("cp-fil"); if (!fil) return;
+    fil.innerHTML = compagnon.fil.map(m => `<div class="cp-msg ${m.de}">${esc(m.texte)}</div>`).join("");
+    fil.scrollTop = fil.scrollHeight;
+    cpEl("cp-sugg").innerHTML = Object.entries(SUGGESTIONS).map(([k, [libelle]]) => `<button type="button" data-cp-sugg="${k}">${esc(libelle)}</button>`).join("");
+  }
+  function cpReinitialiser() {
+    compagnon.page = route();
+    compagnon.fil = [{ de: "ia", texte: `Vous êtes sur « ${pageCourante()} ». Je suis une simulation : je lis cette page et je réponds par des phrases préparées, sans rien envoyer.` }];
+    cpRendre();
+  }
+  // Une réponse simulée s'écrit en deux temps, comme si elle était en cours de rédaction.
+  function cpRepondre(texteFn) {
+    compagnon.fil.push({ de: "ia", texte: "…" }); const n = compagnon.fil.length - 1; cpRendre();
+    setTimeout(() => { if (compagnon.fil[n] && compagnon.fil[n].texte === "…") { compagnon.fil[n].texte = texteFn(); cpRendre(); } }, 500);
+  }
+  function cpDemander(cle) {
+    const [libelle, reponse] = SUGGESTIONS[cle];
+    compagnon.fil.push({ de: "moi", texte: libelle }); cpRendre();
+    if (cle === "sia") { compagnon.fil.push({ de: "ia", texte: "J'ouvre Sécur'IA, où une question reçoit une réponse sourcée. Ici, il ne s'agit que d'une simulation." }); cpRendre(); setTimeout(() => { location.hash = "#sia"; }, 1200); return; }
+    cpRepondre(reponse);
+  }
+  function cpBasculer(etat = !compagnon.ouvert) {
+    compagnon.ouvert = etat;
+    const p = cpEl("cp-panneau"), b = cpEl("cp-bouton");
+    p.hidden = !etat; b.setAttribute("aria-expanded", String(etat)); b.classList.toggle("on", etat);
+    if (etat) { if (!compagnon.fil.length || compagnon.page !== route()) cpReinitialiser(); cpEl("cp-saisie").querySelector("input").focus(); }
+  }
+  function initCompagnon() {
+    const racine = document.createElement("div"); racine.id = "cp";
+    racine.innerHTML = `<section class="cp-panneau" id="cp-panneau" role="dialog" aria-label="Assistant simulé" hidden>
+        <header class="cp-tete"><span class="cp-nom">Assistant Repère</span><span class="cp-tag">Simulation</span>
+          <button type="button" class="cp-fermer" data-cp="fermer" aria-label="Fermer l'assistant">${ic("close", "s20")}</button></header>
+        <div class="cp-fil" id="cp-fil" aria-live="polite"></div>
+        <div class="cp-sugg" id="cp-sugg"></div>
+        <form class="cp-saisie" id="cp-saisie" autocomplete="off"><input type="text" aria-label="Votre question (simulation)" placeholder="Une question (simulation)">
+          <button type="submit" aria-label="Envoyer">${ic("send", "s20")}</button></form>
+      </section>
+      <button type="button" class="cp-bouton" id="cp-bouton" data-cp="ouvrir" aria-expanded="false" aria-controls="cp-panneau">${ic("smart_toy", "s20")}<span class="cp-lib">Assistant · simulé</span></button>`;
+    document.body.appendChild(racine);
+    racine.addEventListener("click", e => {
+      const b = e.target.closest("[data-cp]"); if (b) cpBasculer(b.dataset.cp === "ouvrir" ? undefined : false);
+      const s = e.target.closest("[data-cp-sugg]"); if (s) cpDemander(s.dataset.cpSugg);
+    });
+    racine.querySelector("form").addEventListener("submit", e => {
+      e.preventDefault(); const i = e.target.querySelector("input"), t = i.value.trim(); if (!t) return; i.value = "";
+      compagnon.fil.push({ de: "moi", texte: t }); cpRendre();
+      cpRepondre(() => "Je ne réponds qu'aux suggestions de cette page : c'est une simulation. Pour une question ouverte, Sécur'IA est l'endroit prévu.");
+    });
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && compagnon.ouvert) cpBasculer(false); });
+  }
+  // L'assistant se masque dans Sécur'IA (qui a son propre champ) et repart d'une page à l'autre.
+  function majCompagnon() {
+    const dansSia = document.body.classList.contains("dans-sia"), racine = cpEl("cp");
+    if (!racine) return;
+    racine.hidden = dansSia;
+    if (dansSia && compagnon.ouvert) cpBasculer(false);
+    if (route() !== compagnon.page && compagnon.ouvert) cpReinitialiser();
+    else if (route() !== compagnon.page) compagnon.page = null;
+  }
+  initCompagnon();
+  window.addEventListener("hashchange", majCompagnon);
+
+  document.addEventListener("DOMContentLoaded", () => { majTheme(); rendre(); majCompagnon(); });
 })();
 
 </script>
